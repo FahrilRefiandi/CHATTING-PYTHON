@@ -15,14 +15,48 @@ def handle_client(client_socket, client_address, clients):
 
         message = data.decode()
         recipient, msg_type, content = message.split("|")
+        # Convert recipient to an array if it contains []
+        if recipient.startswith("[") and recipient.endswith("]"):
+            recipient = recipient[1:-1].split(",")
+            recipient = [name.strip() for name in recipient]
+        else:
+            if recipient == "all":
+                recipient = list(clients.keys())
+
+        
+        
+
+
+        print("Recipient:", recipient)
+        print("Message Type:", msg_type)
+        print("Content:", content)
+        # exit()
 
         if msg_type == "message":
             print(f"[{username} -> {recipient}]: {content}")
-            if recipient in clients:
-                recipient_socket = clients[recipient]
-                recipient_socket.send(f"[{username}]: {content}".encode())
+            # if recipient is array
+            if isinstance(recipient, list):
+                for recipient in recipient:
+                    if recipient in clients:
+                        recipient_socket = clients[recipient]
+                        recipient_socket.send(f"[{username}]: {content}".encode())
+                    else:
+                        client_socket.send(f"Recipient '{recipient}' not found.".encode())
+            # if recipient is string
             else:
-                client_socket.send(f"Recipient '{recipient}' not found.".encode())
+                # if recipient == all
+                if recipient == "all":
+                    for recipient in clients:
+                        recipient_socket = clients[recipient]
+                        recipient_socket.send(f"[{username}]: {content}".encode())
+                # if recipient is a single user
+                else:
+                    if recipient in clients:
+                        recipient_socket = clients[recipient]
+                        recipient_socket.send(f"[{username}]: {content}".encode())
+                    else:
+                        client_socket.send(f"Recipient '{recipient}' not found.".encode())
+
 
         elif msg_type == "image":
             img_name, img_data = content.split("|")
@@ -59,7 +93,7 @@ def save_video(video_name, video_data):
         f.write(video_data.encode())
 
 def main():
-    host = '0.0.0.0'
+    host = '192.168.1.10'
     port = 12345
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -7,6 +7,7 @@ import base64
 def receive_data(sock):
     while True:
         data = sock.recv(1024).decode()
+        print("\n")
         print(data)
 
 def send_image(sock, recipient, img_path):
@@ -26,7 +27,7 @@ def send_video(sock, recipient, video_path):
     sock.send(message.encode())
 
 def main():
-    host = 'localhost'
+    host = '192.168.1.10'
     port = 12345
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,7 +49,7 @@ def main():
         choice = input("Your choice: ")
 
         if choice == "1":
-            recipient = input("Enter recipient's username: ")
+            recipient = input("Enter recipient's username ('all',[username1,username2]) :")
             message = input("Enter your message: ")
             client_socket.send(f"{recipient}|message|{message}".encode())
 
