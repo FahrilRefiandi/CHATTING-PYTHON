@@ -1,6 +1,7 @@
 import socket
 import threading
-import os
+
+
 
 def handle_client(client_socket, client_address, clients):
     username = client_socket.recv(1024).decode()
@@ -13,15 +14,17 @@ def handle_client(client_socket, client_address, clients):
         if not data:
             break
 
-        message = data.decode()
+        message = data.decode("utf-8")
         recipient, msg_type, content = message.split("|")
-        # Convert recipient to an array if it contains []
+        
         if recipient.startswith("[") and recipient.endswith("]"):
             recipient = recipient[1:-1].split(",")
             recipient = [name.strip() for name in recipient]
+        
         else:
             if recipient == "all":
                 recipient = list(clients.keys())
+                recipient.remove(username)
 
         
         
@@ -30,7 +33,7 @@ def handle_client(client_socket, client_address, clients):
         print("Recipient:", recipient)
         print("Message Type:", msg_type)
         print("Content:", content)
-        # exit()
+        
 
         if msg_type == "message":
             print(f"[{username} -> {recipient}]: {content}")
@@ -59,18 +62,28 @@ def handle_client(client_socket, client_address, clients):
 
 
         elif msg_type == "image":
-            img_name, img_data = content.split("|")
+            img_name, img_data = content.split("?data=")
             save_image(img_name, img_data)
 
             print(f"[{username} -> {recipient}]: {img_name} (Image)")
-            if recipient in clients:
-                recipient_socket = clients[recipient]
-                recipient_socket.send(f"[{username}] sent an image: {img_name}".encode())
+            if isinstance(recipient, list):
+                for recipient in recipient:
+                    if recipient in clients:
+                        recipient_socket = clients[recipient]
+                        recipient_socket.send(f"[{username}] sent an image: {img_name}".encode())
+                    else:
+                        client_socket.send(f"Recipient '{recipient}' not found.".encode())
+
             else:
-                client_socket.send(f"Recipient '{recipient}' not found.".encode())
+                if recipient in clients:
+                    recipient_socket = clients[recipient]
+                    recipient_socket.send(f"[{username}] sent an image: {img_name}".encode())
+                else:
+                    client_socket.send(f"Recipient '{recipient}' not found.".encode())
+
 
         elif msg_type == "video":
-            video_name, video_data = content.split("|")
+            video_name, video_data = content.split("?data=")
             save_video(video_name, video_data)
 
             print(f"[{username} -> {recipient}]: {video_name} (Video)")
@@ -79,6 +92,8 @@ def handle_client(client_socket, client_address, clients):
                 recipient_socket.send(f"[{username}] sent a video: {video_name}".encode())
             else:
                 client_socket.send(f"Recipient '{recipient}' not found.".encode())
+
+    # exit();
 
     del clients[username]
     client_socket.close()
@@ -93,7 +108,7 @@ def save_video(video_name, video_data):
         f.write(video_data.encode())
 
 def main():
-    host = '192.168.1.10'
+    host = 'localhost'
     port = 12345
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

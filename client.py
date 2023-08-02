@@ -1,33 +1,28 @@
 import socket
 import threading
 import os
-from PIL import Image
 import base64
 
 def receive_data(sock):
     while True:
-        data = sock.recv(1024).decode()
+        data = sock.recv(1024).decode("utf-8")
         print("\n")
         print(data)
 
-def send_image(sock, recipient, img_path):
-    img_name = os.path.basename(img_path)
-    with open(img_path, "rb") as f:
-        img_data = f.read()
-    img_data_b64 = base64.b64encode(img_data).decode()
-    message = f"{recipient}|image|{img_name}|{img_data_b64}"
+def send_message(sock, recipient, content):
+    message = f"{recipient}|message|{content}"
     sock.send(message.encode())
 
-def send_video(sock, recipient, video_path):
-    video_name = os.path.basename(video_path)
-    with open(video_path, "rb") as f:
-        video_data = f.read()
-    video_data_b64 = base64.b64encode(video_data).decode()
-    message = f"{recipient}|video|{video_name}|{video_data_b64}"
+def send_file(sock, recipient, file_path, msg_type):
+    file_name = os.path.basename(file_path)
+    with open(file_path, "rb") as f:
+        file_data = f.read()
+    file_data_b64 = base64.b64encode(file_data).decode()
+    message = f"{recipient}|{msg_type}|{file_name}?data={file_data_b64}"
     sock.send(message.encode())
 
 def main():
-    host = '192.168.1.10'
+    host = 'localhost'
     port = 12345
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,23 +44,23 @@ def main():
         choice = input("Your choice: ")
 
         if choice == "1":
-            recipient = input("Enter recipient's username ('all',[username1,username2]) :")
+            recipient = input("Enter recipient's username ('all',[username1,username2] for all users): ")
             message = input("Enter your message: ")
-            client_socket.send(f"{recipient}|message|{message}".encode())
+            send_message(client_socket, recipient, message)
 
         elif choice == "2":
-            recipient = input("Enter recipient's username: ")
+            recipient = input("Enter recipient's username ('all',[username1,username2] for all users): ")
             img_path = input("Enter the image file path: ")
             if os.path.exists(img_path):
-                send_image(client_socket, recipient, img_path)
+                send_file(client_socket, recipient, img_path, "image")
             else:
                 print("File not found!")
 
         elif choice == "3":
-            recipient = input("Enter recipient's username: ")
+            recipient = input("Enter recipient's username ('all',[username1,username2] for all users): ")
             video_path = input("Enter the video file path: ")
             if os.path.exists(video_path):
-                send_video(client_socket, recipient, video_path)
+                send_file(client_socket, recipient, video_path, "video")
             else:
                 print("File not found!")
 
