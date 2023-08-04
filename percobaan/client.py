@@ -15,7 +15,7 @@ def receive_data(sock):
 
 def main():
 
-    host = 'localhost'
+    host = '192.168.1.84'
     port = 12345
     
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,9 +68,18 @@ def send_message(sock, recipient, message):
     message = f"{recipient}|message|{message}"
     sock.send(message.encode())
 
+# def send_file(sock, recipient, file_path, msg_type):
+#     message = f"{recipient}|{msg_type}|{file_path}"
+#     sock.send(message.encode())
+
 def send_file(sock, recipient, file_path, msg_type):
-    message = f"{recipient}|{msg_type}|{file_path}"
-    sock.send(message.encode())
+     with open(file_path, 'rb') as file:
+        image_data = file.read()
+
+
+     message = f"{recipient}|{msg_type}|{image_data}"
+     sock.send(message.encode())
+
 
 if __name__ == "__main__":
     main()

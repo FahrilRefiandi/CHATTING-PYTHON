@@ -2,10 +2,12 @@ import socket
 import threading
 import base64
 import os
-
+from io import BytesIO
+from PIL import Image
+import magic
 
 def main():
-    host = 'localhost'
+    host = '192.168.1.84'
     port = 12345
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,109 +23,80 @@ def main():
         client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address, clients))
         client_thread.start()
 
-
-
 def handle_client(client_socket, client_address, clients):
     username = client_socket.recv(1024).decode()
     clients[username] = client_socket
     print(f"[INFO] {username} connected.")
     
-
+    file_data = b""
     while True:
         try:
+            data = client_socket.recv(1024)
             
-            data = client_socket.recv(1024).decode()
-            recipient = data.split("|")[0]
-            # if recipient start [ and end with ] then it is a list
+            if not data:
+                break
+
+            file_data += data
+            print(file_data)
+            print(data)
+
+            # Process only if the data contains at least two '|' characters
+            if file_data.count(b"|") < 2:
+                continue
+
+            recipient, rest_data = file_data.split(b"|", 1)
+            recipient = recipient.decode()
+
             if recipient[0] == "[" and recipient[-1] == "]":
                 recipient = recipient[1:-1].split(",")
                 recipient = [r.strip() for r in recipient]
-            
             elif recipient == "all":
                 recipient = list(clients.keys())
                 recipient.remove(username)
+            else:
+                recipient = [recipient]
 
-            # jika recipient bukan list, maka jadikan list
-            recipient = recipient if isinstance(recipient, list) else [recipient]
+            # rest of your code ...
 
+            msg_type, content = rest_data.split(b"|", 1)
+            msg_type = msg_type.strip()
 
-            
-
-            
-            msg_type = data.split("|")[1]
-
-            if msg_type == "message":
-                content = data.split("|")[2]
-                send_message(client_socket, username, recipient, content)
-            elif msg_type == "image" or msg_type == "video":
-                content = data.split("|")[2]
-                send_file(client_socket, username, recipient, content, msg_type)
+            if msg_type == b"message":
+                content = content.strip().decode()
+                send_message(clients, username, recipient, content)
+            elif msg_type in (b"image", b"video"):
+                # content = content.strip().decode()
+                # print(content);
+                # padding = b"=" * (4 - (len(content) % 4))
+                # content = content + padding
+                # content = base64.b64decode(content)
+                send_file(clients, username, recipient, content, msg_type)
             else:
                 print("Invalid message type!")
 
-
-            print(recipient,msg_type,content)
-
-            
-
-            
-            
         except OSError:
             break
 
+        # Clear the file data before the next iteration
+        file_data = b""
 
-def send_message(client_socket,username,recipient,content):
-    for recipient in recipient:
-        if recipient in username:
-            client_socket.send(f"[{username}] sent a message: {content}".encode())
-        else:
-            client_socket.send(f"Recipient '{recipient}' not found.".encode())
 
-def send_file(client_socket,username,recipient,content,msg_type):
-     # content is path to file
-    # content = "C:\\Users\\ASUS\\Desktop\\test.png"
-
-    # check if file exists and upload to asset folder
-    if os.path.isfile(content):
-        file_name = os.path.basename(content)
-        # if ASSET folder does not exist, create one
-        os.makedirs('ASSET', exist_ok=True)
-        # upload file to ASSET folder
-        with open(content, 'rb') as file:  # Open the file in binary mode to read its content as bytes
-            file_content = file.read()
-        with open(os.path.join('ASSET', file_name), 'wb') as destination_file:
-            destination_file.write(file_content)
-
-        # send file to recipient
-        for rcpnt in recipient:
-            if rcpnt == username:  # Check if the recipient is the same as the sender
-                client_socket.send(f"[{username}] sent a {msg_type}: {file_name}".encode())
+def send_message(clients,username,recipient,content):
+    # send message to recipient
+    for rcpnt in recipient:
+        if rcpnt in clients.keys():
+            if rcpnt == username:
+                clients[rcpnt].send(f"[{username}] {content}".encode())
             else:
-                client_socket.send(f"Recipient '{rcpnt}' not found.".encode())
-
-    else:
-        client_socket.send(f"File '{content}' not found.".encode())
-    # if msg_type == "image":
-
-
-    
-
-
-
-
-        
-        
-
-        
-
-    # elif msg_type == "video":
-
+                clients[rcpnt].send(f"[{username}] {content}".encode())
+        else:
+            clients[username].send(f"Recipient '{rcpnt}' not found.".encode())
 
         
 
 
-
-    
-
+def send_file(clients, username, recipient, content, msg_type):
+    print(content)
+ 
 if __name__ == "__main__":
     main()
