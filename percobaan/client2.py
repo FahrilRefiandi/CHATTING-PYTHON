@@ -8,57 +8,70 @@ import base64
 def receive_data(sock):
     buffer = b""  # Buffer to accumulate received data
 
-    while True:
-        try:
+    try:
+        while True:
             data = sock.recv(100000000)
+            if not data:  # Check if no more data is being received
+                break
             
-            # exit()
-            if not data:
-                break 
+            buffer += data  # Accumulate received data
 
-            buffer += data
-
-            buffer = buffer.split(b"||")
-
+            process_message(buffer)
             
-            sender = buffer[0].decode()
-            
-            msg_type = buffer[2].decode()
-            
-            if msg_type == "message":
-                content = buffer[1].decode()
-                print(f"\n{sender}: {content}")
-            elif msg_type == "image":
-                file_path = buffer[3].decode()
-                file_name = os.path.basename(file_path)
-                content = buffer[1]
-                # print(content)
-                
-                file=generateFile(file_name, content)
-                print(f"\n{sender}: {file}")
-                
-                
-                # print(f"\n{sender}: {content}")
+    except Exception as e:
+        print("Error:", e)
 
-                
+def process_message(message):
+    
+    parts = message.split(b"||")
+    
+    
+    
 
-        except OSError:
-            break
-        buffer = b""
+    sender = parts[0].decode()
+    msg_type = parts[2].decode()
+    content = parts[1]
+
+    if msg_type == "message":
+        print(f"\n{sender}: {content.decode()}")
+    elif msg_type == "image":
+        file_path = parts[3].decode()
+        file_name = os.path.basename(file_path)
+        
+        
+        generateFile(file_name, content)
+        print(f"\n{sender}: {file_name}")
 
 def generateFile(file_name, file_data):
-    # Convert file_data to bytes if it's a string
+    file_name = file_name[:-1]
     if isinstance(file_data, str):
         file_data = file_data.encode()
     
-    with open(file_name, 'wb') as destination_file:
-        destination_file.write(file_data)
-    return file_name
+    
+    if file_data.startswith(b"b'") or file_data.startswith(b'b"'):
+        file_data = file_data[2:-1]
+    
+    
+    try:
+        decoded_data = base64.b64decode(file_data)
+    except:
+        decoded_data = file_data
+    
+    os.makedirs('ASSET', exist_ok=True)
+    
+    file_path = os.path.join('ASSET', file_name)
+    
+    
 
+    with open(os.path.join('ASSET', file_name), 'wb') as destination_file:
+        destination_file.write(decoded_data)
+
+    
+    return destination_file.name
 
 def main():
 
-    host = '192.168.1.27'
+    host = '192.168.1.26'
     port = 12345
     
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -108,7 +121,7 @@ def main():
             print("Invalid choice!")
 
 def send_message(sock, recipient, message):
-    message = f"{recipient}|message|{message}|null"
+    message = f"{recipient}||message||{message}||null"
     sock.send(message.encode())
 
 # def send_file(sock, recipient, file_path, msg_type):
@@ -118,10 +131,8 @@ def send_message(sock, recipient, message):
 def send_file(sock, recipient, file_path, msg_type):
      with open(file_path, 'rb') as file:
         image_data = file.read()
-
-     print(file_path)
-     message = f"{recipient}|{msg_type}|{image_data}|{file_path}"
-     print(message)
+     message = f"{recipient}||{msg_type}||{image_data}||{file_path}"
+    #  print(message)
      sock.send(message.encode())
 
 

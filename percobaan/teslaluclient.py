@@ -6,59 +6,16 @@ import base64
 
 
 def receive_data(sock):
-    buffer = b""  # Buffer to accumulate received data
-
     while True:
         try:
-            data = sock.recv(100000000)
-            
-            # exit()
-            if not data:
-                break 
-
-            buffer += data
-
-            buffer = buffer.split(b"||")
-
-            
-            sender = buffer[0].decode()
-            
-            msg_type = buffer[2].decode()
-            
-            if msg_type == "message":
-                content = buffer[1].decode()
-                print(f"\n{sender}: {content}")
-            elif msg_type == "image":
-                file_path = buffer[3].decode()
-                file_name = os.path.basename(file_path)
-                content = buffer[1]
-                # print(content)
-                
-                file=generateFile(file_name, content)
-                print(f"\n{sender}: {file}")
-                
-                
-                # print(f"\n{sender}: {content}")
-
-                
-
+            data = sock.recv(1024).decode()
+            print(data)
         except OSError:
             break
-        buffer = b""
-
-def generateFile(file_name, file_data):
-    # Convert file_data to bytes if it's a string
-    if isinstance(file_data, str):
-        file_data = file_data.encode()
-    
-    with open(file_name, 'wb') as destination_file:
-        destination_file.write(file_data)
-    return file_name
-
 
 def main():
 
-    host = '192.168.1.27'
+    host = 'localhost'
     port = 12345
     
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -108,22 +65,12 @@ def main():
             print("Invalid choice!")
 
 def send_message(sock, recipient, message):
-    message = f"{recipient}|message|{message}|null"
+    message = f"{recipient}|message|{message}"
     sock.send(message.encode())
 
-# def send_file(sock, recipient, file_path, msg_type):
-#     message = f"{recipient}|{msg_type}|{file_path}"
-#     sock.send(message.encode())
-
 def send_file(sock, recipient, file_path, msg_type):
-     with open(file_path, 'rb') as file:
-        image_data = file.read()
-
-     print(file_path)
-     message = f"{recipient}|{msg_type}|{image_data}|{file_path}"
-     print(message)
-     sock.send(message.encode())
-
+    message = f"{recipient}|{msg_type}|{file_path}"
+    sock.send(message.encode())
 
 if __name__ == "__main__":
     main()
